@@ -61,7 +61,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'GET',
-            '/' & bucket,
+            '/',
             queryParams
         );
         if ( apiResponse.statusCode == 200 ) {
@@ -130,6 +130,58 @@ component {
     }
 
     /**
+    * Returns some or all (up to 1000) of the objects in a bucket. You pass returned ContinuationToken to next request to get next set of records
+    * https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html
+    * @Bucket the name of the bucket to list objects from
+    * @Delimiter A delimiter is a character you use to group keys. All keys that contain the same string between the prefix, if specified, and the first occurrence of the delimiter after the prefix are grouped under a single result element, CommonPrefixes. If you don't specify the prefix parameter, then the substring starts at the beginning of the key.
+    * @EncodingType Requests Amazon S3 to encode the response and specifies the encoding method to use. (Valid value: url)
+    * @Marker Specifies the key to start with when listing objects in a bucket. Amazon S3 returns object keys in alphabetical order, starting with key after the marker in order.
+    * @MaxKeys Sets the maximum number of keys returned in the response body. You can add this to your request if you want to retrieve fewer than the default 1000 keys.
+    * @Prefix Limits the response to keys that begin with the specified prefix. You can use prefixes to separate a bucket into different groupings of keys. (You can think of using prefix to make groups in the same way you'd use a folder in a file system.)
+    * @ContinuationToken If this is passed we will get next set of records
+    */
+
+    public any function listBucketV2(
+        required string Bucket,
+        string Delimiter = '',
+        string EncodingType = '',
+        string Marker = '',
+        numeric MaxKeys = 0,
+        string Prefix = '',
+        string ContinuationToken = ''
+    ) {
+        var requestSettings = api.resolveRequestSettings( argumentCollection = arguments );
+        var queryParams = { 'list-type': 2 };
+        for (
+            var key in [
+                'Delimiter',
+                'EncodingType',
+                'Marker',
+                'Prefix',
+                'ContinuationToken'
+            ]
+        ) {
+            if ( len( arguments[ key ] ) ) queryParams[ utils.parseKey( key ) ] = arguments[ key ];
+        }
+        if ( arguments.MaxKeys ) queryParams[ utils.parseKey( 'MaxKeys' ) ] = arguments.MaxKeys;
+
+        var apiResponse = apiCall(
+            requestSettings,
+            'GET',
+            '/',
+            queryParams
+        );
+
+        if ( apiResponse.statusCode == 200 ) {
+            apiResponse[ 'data' ] = utils.parseXmlDocument( apiResponse.rawData );
+            if ( apiResponse.data.keyExists( 'Contents' ) && !isArray( apiResponse.data.Contents ) ) {
+                apiResponse.data.Contents = [ apiResponse.data.Contents ];
+            }
+        }
+        return apiResponse;
+    }
+
+    /**
     * This operation is useful to determine if a bucket exists and you have permission to access it.
     * http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketHEAD.html
     * @Bucket the name of the bucket
@@ -138,7 +190,7 @@ component {
         required string Bucket
     ) {
         var requestSettings = api.resolveRequestSettings( argumentCollection = arguments );
-        var apiResponse = apiCall( requestSettings, 'HEAD', '/' & Bucket );
+        var apiResponse = apiCall( requestSettings, 'HEAD' );
         return apiResponse;
     }
 
@@ -187,12 +239,12 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'GET',
-            '/' & bucket,
+            '/',
             queryParams
         );
         if ( apiResponse.statusCode == 200 ) {
             if ( Setting != 'policy' ) {
-                apiResponse[ 'data' ] = utils.parseXmlResponse( apiResponse.rawData, returnedXmlElement[ typeIndex ] );
+                apiResponse[ 'data' ] = utils.parseXmlElement( apiResponse.rawData, returnedXmlElement[ typeIndex ] );
             } else {
                 apiResponse[ 'data' ] = deserializeJSON( apiResponse.rawData );
             }
@@ -238,7 +290,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'GET',
-            '/' & bucket,
+            '/',
             queryParams
         );
         if ( apiResponse.statusCode == 200 ) {
@@ -285,7 +337,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'GET',
-            '/' & bucket,
+            '/',
             queryParams
         );
         if ( apiResponse.statusCode == 200 ) {
@@ -321,7 +373,7 @@ component {
         return apiCall(
             requestSettings,
             'PUT',
-            '/' & bucket,
+            '/',
             { },
             headers,
             payload
@@ -337,7 +389,7 @@ component {
         required string Bucket
     ) {
         var requestSettings = api.resolveRequestSettings( argumentCollection = arguments );
-        return apiCall( requestSettings, 'DELETE', '/' & Bucket );
+        return apiCall( requestSettings, 'DELETE', '/' );
     }
 
     /**
@@ -358,7 +410,7 @@ component {
         return apiCall(
             requestSettings,
             'GET',
-            '/' & Bucket & '/' & ObjectKey,
+            '/' & ObjectKey,
             queryParams
         );
     }
@@ -381,7 +433,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'GET',
-            '/' & Bucket & '/' & ObjectKey,
+            '/' & ObjectKey,
             queryParams
         );
         if ( apiResponse.statusCode == 200 ) {
@@ -408,7 +460,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'HEAD',
-            '/' & Bucket & '/' & ObjectKey,
+            '/' & ObjectKey,
             queryParams
         );
         return apiResponse;
@@ -432,7 +484,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'GET',
-            '/' & Bucket & '/' & ObjectKey,
+            '/' & ObjectKey,
             queryParams
         );
         if ( apiResponse.statusCode == 200 ) {
@@ -456,8 +508,9 @@ component {
         string VersionId = ''
     ) {
         var requestSettings = api.resolveRequestSettings( argumentCollection = arguments );
-        var host = getHost( requestSettings.region );
-        var path = '/' & Bucket & '/' & ObjectKey;
+        var host = getHost( requestSettings );
+        var path = arguments.Bucket.find( '.' ) ? '/' & arguments.Bucket : '';
+        path &= '/' & ObjectKey;
         var queryParams = { };
         if ( len( arguments.VersionId ) ) queryParams[ 'versionId' ] = arguments.VersionId;
         return api.signedUrl(
@@ -531,7 +584,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'PUT',
-            '/' & Bucket & '/' & ObjectKey,
+            '/' & ObjectKey,
             { },
             headers,
             FileContent
@@ -566,6 +619,7 @@ component {
         string WebsiteRedirectLocation = '',
         string VersionId = ''
     ) {
+        arguments.Bucket = arguments.DestinationBucket;
         var requestSettings = api.resolveRequestSettings( argumentCollection = arguments );
         var headers = { };
         headers[ 'X-Amz-Copy-Source' ] = '/' & SourceBucket & '/' & SourceObjectKey;
@@ -583,7 +637,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'PUT',
-            '/' & destinationBucket & '/' & destinationObjectKey,
+            '/' & destinationObjectKey,
             { },
             headers
         );
@@ -602,7 +656,7 @@ component {
         required string ObjectKey
     ) {
         var requestSettings = api.resolveRequestSettings( argumentCollection = arguments );
-        return apiCall( requestSettings, 'DELETE', '/' & bucket & '/' & objectKey );
+        return apiCall( requestSettings, 'DELETE', '/' & objectKey );
     }
 
     /**
@@ -633,7 +687,7 @@ component {
         var apiResponse = apiCall(
             requestSettings,
             'POST',
-            '/' & bucket,
+            '/',
             queryParams,
             headers,
             xmlBody
@@ -665,7 +719,7 @@ component {
 
         var expiration = utils.iso8601Full( dateAdd( 's', expires, requestTime ) );
         var conditions = [ { 'name': 'bucket', 'value': bucket } ];
-        if ( isSimpleValue( objectKey ) ) objectKey = { name: 'key', value: objectKey };
+        if ( isSimpleValue( objectKey ) ) objectKey = { 'name': 'key', 'value': objectKey };
         conditions.append( objectKey );
 
         postParams.append( objectKey );
@@ -724,13 +778,21 @@ component {
     // private
 
     private string function getHost(
-        required string region
+        required struct requestSettings
     ) {
-        if ( structKeyExists( variables.settings, 'host' ) and len( variables.settings.host ) ) {
-            return variables.settings.host;
+        if ( structKeyExists( variables.settings, 'host' ) && len( variables.settings.host ) ) {
+            var host = variables.settings.host;
         } else {
-            return variables.service & ( region == 'us-east-1' ? '' : '-' & region ) & '.amazonaws.com';
+            var host = variables.service & ( requestSettings.region == 'us-east-1' ? '' : '-' & requestSettings.region ) & '.amazonaws.com';
         }
+        if (
+            requestSettings.keyExists( 'bucket' ) &&
+            len( requestSettings.bucket ) &&
+            !requestSettings.bucket.find( '.' )
+        ) {
+            host = listPrepend( host, requestSettings.bucket, '.' );
+        }
+        return host;
     }
 
     private any function apiCall(
@@ -741,7 +803,15 @@ component {
         struct headers = { },
         any payload = ''
     ) {
-        var host = getHost( requestSettings.region );
+        var host = getHost( requestSettings );
+
+        if (
+            requestSettings.keyExists( 'bucket' ) &&
+            len( requestSettings.bucket ) &&
+            requestSettings.bucket.find( '.' )
+        ) {
+            path = '/' & requestSettings.bucket & path;
+        }
 
         if ( !isSimpleValue( payload ) || len( payload ) ) {
             headers[ 'X-Amz-Content-Sha256' ] = hash( payload, 'SHA-256' ).lcase();
