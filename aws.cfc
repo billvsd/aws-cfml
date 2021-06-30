@@ -13,6 +13,7 @@ component {
         'sns',
         'sqs',
         'rekognition',
+        'route53',
         'translate'
     ];
 
@@ -29,7 +30,8 @@ component {
         s3: { host: '', useSSL: true },
         sns: { apiVersion: '2010-03-31' },
         sqs: { apiVersion: '2012-11-05' },
-        translate: { apiVersion: '20170701', defaultSourceLanguageCode: 'es', defaultTargetLanguageCode: 'en' }
+        translate: { apiVersion: '20170701', defaultSourceLanguageCode: 'es', defaultTargetLanguageCode: 'en' },
+        route53: { host: '', apiVersion: '2013-04-01' }
     };
 
     public struct function init(
